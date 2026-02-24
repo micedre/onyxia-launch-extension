@@ -99,8 +99,6 @@ describe('buildSSPCloudURL', () => {
 
 describe('getRepositoryCloneURL', () => {
   beforeEach(() => {
-    document.body.innerHTML = '';
-    // Set a default GitHub-style pathname
     Object.defineProperty(window, 'location', {
       value: { pathname: '/owner/repo' },
       writable: true,
@@ -108,54 +106,27 @@ describe('getRepositoryCloneURL', () => {
     });
   });
 
-  test('returns URL from .js-clone-url span textContent', () => {
-    document.body.innerHTML =
-      '<span class="js-clone-url">https://github.com/owner/repo.git</span>';
-    expect(getRepositoryCloneURL()).toBe('https://github.com/owner/repo.git');
-  });
-
-  test('returns URL from form textarea[name="clone"] textContent', () => {
-    document.body.innerHTML =
-      '<form><textarea name="clone">https://github.com/owner/repo.git</textarea></form>';
-    expect(getRepositoryCloneURL()).toBe('https://github.com/owner/repo.git');
-  });
-
-  test('returns URL from div.d-none anchor textContent', () => {
-    // On GitHub the hidden clone-url anchors carry the URL as their text content
-    document.body.innerHTML =
-      '<div class="d-none"><a href="#">https://github.com/owner/repo.git</a></div>';
-    expect(getRepositoryCloneURL()).toBe('https://github.com/owner/repo.git');
-  });
-
-  test('falls back to window.location when no selector matches', () => {
-    document.body.innerHTML = '<div>nothing here</div>';
+  test('returns HTTPS URL built from window.location pathname', () => {
     expect(getRepositoryCloneURL()).toBe('https://github.com/owner/repo');
   });
 
-  test('fallback uses only first two path segments', () => {
+  test('uses only the first two path segments (ignores /tree/main etc.)', () => {
     window.location = { pathname: '/owner/repo/tree/main' };
-    document.body.innerHTML = '';
-    // The regex in github-button.js prevents reaching getRepositoryCloneURL on
-    // deep paths, but the function itself should still use parts[0]/parts[1]
     expect(getRepositoryCloneURL()).toBe('https://github.com/owner/repo');
   });
 
   test('returns null when pathname has fewer than two segments', () => {
     window.location = { pathname: '/owner' };
-    document.body.innerHTML = '';
     expect(getRepositoryCloneURL()).toBeNull();
   });
 
   test('returns null on root path', () => {
     window.location = { pathname: '/' };
-    document.body.innerHTML = '';
     expect(getRepositoryCloneURL()).toBeNull();
   });
 
-  test('ignores elements whose text is a javascript: URL', () => {
-    document.body.innerHTML =
-      '<span class="js-clone-url">javascript:void(0)</span>';
-    // Should skip and fall back to window.location
-    expect(getRepositoryCloneURL()).toBe('https://github.com/owner/repo');
+  test('handles org names and repo names with hyphens', () => {
+    window.location = { pathname: '/my-org/my-repo' };
+    expect(getRepositoryCloneURL()).toBe('https://github.com/my-org/my-repo');
   });
 });

@@ -42,44 +42,19 @@ function buildSSPCloudURL(cloneURL, config) {
 }
 
 /**
- * Extract the repository clone URL from the current GitHub page.
- * @returns {string|null} Clone URL, or null if not found
+ * Extract the repository HTTPS URL from the current GitHub page URL.
+ * window.location is the most reliable source — DOM-based clone selectors
+ * are stale on modern GitHub and can match unrelated elements (e.g. nav
+ * anchors whose textContent is "Home").
+ * @returns {string|null} HTTPS repository URL, or null if not on a repo page
  */
 function getRepositoryCloneURL() {
-  const selectors = [
-    'form textarea[name="clone"]',
-    'span.js-copy-repository-permalink',
-    'a[title*="SSH"], a[title*="HTTPS"]',
-    '.js-clone-url',
-    'div.d-none a'
-  ];
-
-  for (const selector of selectors) {
-    let element;
-    try {
-      element = document.querySelector(selector);
-    } catch (e) {
-      // Invalid CSS selector - skip
-      continue;
-    }
-    if (element) {
-      const url = (element.textContent?.trim() || element.href || '').trim();
-      const cleanedUrl = url.replace(/\s+/g, ' ').trim();
-      if (cleanedUrl && !cleanedUrl.includes('javascript:')) {
-        console.log('[SSPCloud] Found URL at', selector, ':', cleanedUrl);
-        return cleanedUrl;
-      }
-    }
-  }
-
-  // Fallback - construct from current page URL
   const parts = window.location.pathname.split('/').filter(Boolean);
   if (parts.length >= 2) {
-    const httpsUrl = `https://github.com/${parts[0]}/${parts[1]}`;
-    console.log('[SSPCloud] Using fallback URL:', httpsUrl);
-    return httpsUrl;
+    const url = `https://github.com/${parts[0]}/${parts[1]}`;
+    console.log('[SSPCloud] Repository URL:', url);
+    return url;
   }
-
   return null;
 }
 
