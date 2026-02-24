@@ -1,44 +1,55 @@
 /* global buildSSPCloudURL, getRepositoryCloneURL */
 (function() {
-  // Exit early if not on a two-segment path (owner/repo pattern)
-  const currentPath = window.location.pathname;
-  const repoPathRegex = /^\/[^\/]+\/[^\/]+\/?$/;
-  if (!repoPathRegex.test(currentPath)) {
-    return;
-  }
+  console.log('[SSPCloud] loaded, path:', window.location.pathname);
 
-  // Debounced MutationObserver — disconnects once button is placed
   let debounceTimer;
   const observer = new MutationObserver(() => {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      if (!document.getElementById('sspcloud-launch-btn') && isToolbarAvailable()) {
-        initButton();
-        observer.disconnect();
-      }
-    }, 200);
+    debounceTimer = setTimeout(tryInject, 200);
   });
 
-  // Handle DOM loading states
+  // GitHub uses Turbo (SPA navigation): the content script only runs on full
+  // page loads, so we listen for turbo:load to handle in-page navigation too.
+  document.addEventListener('turbo:load', () => {
+    console.log('[SSPCloud] turbo:load, path:', window.location.pathname);
+    const stale = document.getElementById('sspcloud-launch-btn');
+    if (stale) stale.remove();
+    // Re-arm the observer for new page content
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    tryInject();
+  });
+
+  // Initial load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initButton);
+    document.addEventListener('DOMContentLoaded', tryInject);
   } else {
+    tryInject();
+  }
+
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  // ─── helpers ────────────────────────────────────────────────────────────────
+
+  function isRepoPage() {
+    return /^\/[^\/]+\/[^\/]+\/?$/.test(window.location.pathname);
+  }
+
+  function tryInject() {
+    if (!isRepoPage()) return;
+    if (document.getElementById('sspcloud-launch-btn')) return;
     initButton();
   }
 
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true
-  });
+  // ─── button lifecycle ────────────────────────────────────────────────────────
 
   function initButton() {
-    if (document.getElementById('sspcloud-launch-btn')) {
-      return;
+    // Inject styles once per page
+    if (!document.getElementById('sspcloud-styles')) {
+      const styleTag = document.createElement('style');
+      styleTag.id = 'sspcloud-styles';
+      styleTag.textContent = getButtonStyles();
+      document.head.appendChild(styleTag);
     }
-
-    const styleTag = document.createElement('style');
-    styleTag.textContent = getButtonStyles();
-    document.head.appendChild(styleTag);
 
     const buttonElement = document.createElement('button');
     buttonElement.innerHTML = getButtonHTML();
@@ -49,9 +60,8 @@
     if (insertButtonIntoToolbar(buttonElement)) {
       console.log('[SSPCloud] Button injected successfully');
       observer.disconnect();
-    } else {
-      console.log('[SSPCloud] Could not find toolbar, button not injected');
     }
+    // If insertion failed the observer stays connected and retries on next DOM change
   }
 
   function getButtonStyles() {
@@ -64,35 +74,27 @@
         font-size: 14px;
         font-weight: 600;
         padding: 5px 16px;
-        margin-left: 8px;
         cursor: pointer;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 6px;
         text-decoration: none;
-        transition: all 0.2s ease;
+        transition: background-color 0.2s ease;
         user-select: none;
         white-space: nowrap;
         border: none;
         -webkit-appearance: none;
+        vertical-align: middle;
       }
 
       .sspcloud-github-button svg {
         width: 14px;
         height: 14px;
+        flex-shrink: 0;
       }
 
-      .sspcloud-github-button:hover {
-        background-color: #286799;
-      }
-
-      .sspcloud-github-button:active {
-        background-color: #207dc7;
-      }
-
-      .sspcloud-github-button:after {
-        content: '';
-      }
+      .sspcloud-github-button:hover { background-color: #286799; }
+      .sspcloud-github-button:active { background-color: #207dc7; }
 
       .sspcloud-toast {
         position: fixed;
@@ -110,9 +112,7 @@
         transition: opacity 0.4s ease;
       }
 
-      .sspcloud-toast.fade-out {
-        opacity: 0;
-      }
+      .sspcloud-toast.fade-out { opacity: 0; }
     `;
   }
 
@@ -125,15 +125,25 @@
     `;
   }
 
+  // ─── toolbar insertion ───────────────────────────────────────────────────────
+
   function insertButtonIntoToolbar(buttonElement) {
-    const toolbarSelectors = [
+    // ① Modern GitHub (2024): ul.pagehead-actions holds Watch/Fork/Star as <li>s
+    const actionsList = document.querySelector('ul.pagehead-actions');
+    if (actionsList && actionsList.getBoundingClientRect().width > 0) {
+      const li = document.createElement('li');
+      li.appendChild(buttonElement);
+      actionsList.appendChild(li);
+      return true;
+    }
+
+    // ② Legacy GitHub toolbar selectors
+    for (const selector of [
       '.react-jump-to-actions',
       'div.form-inline',
       '#repo-clone-provider',
       '#repo-links-bar'
-    ];
-
-    for (const selector of toolbarSelectors) {
+    ]) {
       const element = document.querySelector(selector);
       if (element) {
         const rect = element.getBoundingClientRect();
@@ -145,10 +155,11 @@
       }
     }
 
-    // Alternative: find existing Watch/Fork/Star button groups
+    // ③ Fallback: Watch/Fork/Star button-group spans
     const existingButtons = document.querySelectorAll('span[id]:not([id^="actions-"])');
     for (const existingBtn of existingButtons) {
-      if (existingBtn.children.length > 1 && !existingBtn.querySelector('a[data-hovercard-type="repository"]')) {
+      if (existingBtn.children.length > 1 &&
+          !existingBtn.querySelector('a[data-hovercard-type="repository"]')) {
         existingBtn.appendChild(buttonElement);
         return true;
       }
@@ -157,24 +168,7 @@
     return false;
   }
 
-  function isToolbarAvailable() {
-    for (const selector of [
-      '.react-jump-to-actions',
-      'div.form-inline',
-      '#repo-clone-provider',
-      'form[action*="/clone"]'
-    ]) {
-      const element = document.querySelector(selector);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        const style = window.getComputedStyle(element);
-        if (rect.width > 0 && style.display !== 'none' && style.visibility !== 'hidden') {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
+  // ─── click handler ───────────────────────────────────────────────────────────
 
   const DEFAULT_CONFIG = {
     baseUrl: 'https://datalab.sspcloud.fr/launcher/ide/vscode-python',
@@ -201,7 +195,6 @@
         showToast('Popup was blocked. Please allow popups for this site.');
       }
     }).catch(() => {
-      // Fallback if storage API is unavailable
       const targetURL = buildSSPCloudURL(cloneURL, DEFAULT_CONFIG);
       window.open(targetURL, '_blank');
     });

@@ -30,11 +30,11 @@ function buildSSPCloudURL(cloneURL, config) {
     name: 'vscode-generic',
     version,
     s3,
-    'persistence.size': `«${persistenceSize}»`,
-    'init.personalInit': `«${personalInit}»`,
-    'kubernetes.role': '«admin»',
-    'vault.secret': `«${vaultSecret}»`,
-    'git.repository': `«${repoUrl}»`,
+    'persistence.size': `\u00AB${persistenceSize}\u00BB`,
+    'init.personalInit': `\u00AB${personalInit}\u00BB`,
+    'kubernetes.role': '\u00ABadmin\u00BB',
+    'vault.secret': `\u00AB${vaultSecret}\u00BB`,
+    'git.repository': `\u00AB${repoUrl}\u00BB`,
     'git.asCodeServerRoot': 'true'
   });
 
