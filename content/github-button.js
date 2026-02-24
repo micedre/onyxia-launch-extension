@@ -189,20 +189,25 @@
   };
 
   function handleClick() {
-    const cloneURL = getRepositoryCloneURL();
-    if (!cloneURL) {
-      console.error('[SSPCloud] Could not determine repository URL');
-      showToast('Could not detect repository URL');
-      return;
-    }
-
+    // Fetch settings including the new gitUrlTemplate field
     browser.storage.local.get(DEFAULT_CONFIG).then(config => {
+      const gitUrlTemplate = config.gitUrlTemplate || '';
+      const cloneURL = getRepositoryCloneURL(gitUrlTemplate);
+
+      if (!cloneURL) {
+        console.error('[SSPCloud] Could not determine repository URL');
+        showToast('Could not detect repository URL');
+        return;
+      }
+
       const targetURL = buildSSPCloudURL(cloneURL, config);
       const newWindow = window.open(targetURL, '_blank');
       if (!newWindow) {
         showToast('Popup was blocked. Please allow popups for this site.');
       }
     }).catch(() => {
+      const gitUrlTemplate = '';
+      const cloneURL = getRepositoryCloneURL(gitUrlTemplate);
       const targetURL = buildSSPCloudURL(cloneURL, DEFAULT_CONFIG);
       window.open(targetURL, '_blank');
     });

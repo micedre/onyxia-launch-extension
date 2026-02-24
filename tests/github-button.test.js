@@ -129,4 +129,39 @@ describe('getRepositoryCloneURL', () => {
     window.location = { pathname: '/my-org/my-repo' };
     expect(getRepositoryCloneURL()).toBe('https://github.com/my-org/my-repo');
   });
+
+  test('uses gitUrlTemplate with {owner} placeholder', () => {
+    window.location = { pathname: '/my-org/my-repo' };
+    const template = 'https://github.com/{owner}/{repo}/tree/main';
+    expect(getRepositoryCloneURL(template)).toBe('https://github.com/my-org/my-repo/tree/main');
+  });
+
+  test('uses gitUrlTemplate with {repo} placeholder', () => {
+    window.location = { pathname: '/my-org/my-repo' };
+    const template = 'https://github.com/{owner}/{repo}.git';
+    expect(getRepositoryCloneURL(template)).toBe('https://github.com/my-org/my-repo.git');
+  });
+
+  test('uses gitUrlTemplate with both placeholders', () => {
+    window.location = { pathname: '/my-org/my-repo' };
+    const template = 'https://api.github.com/repos/{owner}/{repo}';
+    expect(getRepositoryCloneURL(template)).toBe('https://api.github.com/repos/my-org/my-repo');
+  });
+
+  test('falls back to auto-detection when template is empty', () => {
+    window.location = { pathname: '/owner/repo' };
+    expect(getRepositoryCloneURL('')).toBe('https://github.com/owner/repo');
+  });
+
+  test('falls back to auto-detection when template has no placeholders', () => {
+    window.location = { pathname: '/owner/repo' };
+    const template = 'https://github.com/my-custom-path';
+    expect(getRepositoryCloneURL(template)).toBe('https://github.com/owner/repo');
+  });
+
+  test('returns null on error with invalid template', () => {
+    window.location = { pathname: '/owner/repo' };
+    const template = 'https://github.com/{owner}/{repo';
+    expect(getRepositoryCloneURL(template)).toBe('https://github.com/owner/repo');
+  });
 });

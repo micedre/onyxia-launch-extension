@@ -5,7 +5,8 @@ const DEFAULTS = {
   personalInit:
     'https://raw.githubusercontent.com/micedre/sspcloud-init-scripts/refs/heads/main/vscode/init.sh',
   vaultSecret: 'OPENAI-LLM',
-  persistenceSize: '20Gi'
+  persistenceSize: '20Gi',
+  gitUrlTemplate: ''
 };
 
 function showStatus(message) {

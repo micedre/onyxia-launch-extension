@@ -43,16 +43,28 @@ function buildSSPCloudURL(cloneURL, config) {
 
 /**
  * Extract the repository HTTPS URL from the current GitHub page URL.
- * window.location is the most reliable source — DOM-based clone selectors
- * are stale on modern GitHub and can match unrelated elements (e.g. nav
- * anchors whose textContent is "Home").
+ * Supports optional URL template with {owner} and {repo} placeholders.
+ * @param {string} [gitUrlTemplate] - Optional URL template string with {owner}/{repo} placeholders
  * @returns {string|null} HTTPS repository URL, or null if not on a repo page
  */
-function getRepositoryCloneURL() {
+function getRepositoryCloneURL(gitUrlTemplate = '') {
   const parts = window.location.pathname.split('/').filter(Boolean);
   if (parts.length >= 2) {
-    const url = `https://github.com/${parts[0]}/${parts[1]}`;
-    console.log('[SSPCloud] Repository URL:', url);
+    const owner = parts[0];
+    const repo = parts[1];
+
+    // If a template is configured, use it with placeholder substitution
+    if (gitUrlTemplate && gitUrlTemplate.includes('{owner}') && gitUrlTemplate.includes('{repo}')) {
+      const url = gitUrlTemplate
+        .replace('{owner}', owner)
+        .replace('{repo}', repo);
+      console.log('[SSPCloud] Using URL template:', url);
+      return url;
+    }
+
+    // Fallback: auto-detect from current page URL
+    const url = `https://github.com/${owner}/${repo}`;
+    console.log('[SSPCloud] Auto-detected repository URL:', url);
     return url;
   }
   return null;

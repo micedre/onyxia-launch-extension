@@ -136,6 +136,13 @@
       <input type="text" id="persistenceSize" name="persistenceSize" placeholder="20Gi">
     </div>
 
+    <div class="field">
+      <label for="gitUrlTemplate">GitHub URL Template</label>
+      <div class="field-hint">Optional: Template for GitHub repository URL with {owner} and {repo} placeholders. Leave empty to auto-detect.</div>
+      <input type="url" id="gitUrlTemplate" name="gitUrlTemplate"
+        placeholder="https://github.com/{owner}/{repo}/">
+    </div>
+
     <div class="actions">
       <button type="submit" class="btn-primary">Save Settings</button>
       <button type="button" id="reset-btn" class="btn-secondary">Reset to Defaults</button>
