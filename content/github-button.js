@@ -128,9 +128,11 @@
   // ─── toolbar insertion ───────────────────────────────────────────────────────
 
   function insertButtonIntoToolbar(buttonElement) {
-    // ① Modern GitHub (2024): ul.pagehead-actions holds Watch/Fork/Star as <li>s
+    // ① Modern GitHub (2024): ul.pagehead-actions holds Watch/Fork/Star as <li>s.
+    // Don't check width — the element has d-none d-md-inline so getBoundingClientRect
+    // may return 0 before the browser completes layout, even though it is present.
     const actionsList = document.querySelector('ul.pagehead-actions');
-    if (actionsList && actionsList.getBoundingClientRect().width > 0) {
+    if (actionsList) {
       const li = document.createElement('li');
       li.appendChild(buttonElement);
       actionsList.appendChild(li);
