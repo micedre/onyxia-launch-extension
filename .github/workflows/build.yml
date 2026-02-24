@@ -23,6 +23,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build extension as ZIP
         run: |
           echo "Creating Firefox extension ZIP package..."
@@ -31,6 +34,7 @@ jobs:
             manifest.json \
             content/ \
             icons/ \
+            popup/ \
             README.md
 
       - name: Verify ZIP structure
@@ -107,14 +111,14 @@ jobs:
             console.log('✓ Icons configured:', manifest.icons !== undefined);
           "
 
-      - name: Check JavaScript syntax
-        run: |
-          echo "Checking JavaScript syntax..."
-          if command -v eslint &> /dev/null; then
-            eslint content/github-button.js
-          else
-            echo "  (ESLint not available, skipping syntax check)"
-          fi
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint JavaScript
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
 
       - name: Scan for security issues
         run: |

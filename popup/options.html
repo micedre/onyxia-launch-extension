@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPCloud Launcher — Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      color: #24292f;
+      background: #f6f8fa;
+      padding: 24px;
+      min-width: 480px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #1f2328;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #24292f;
+    }
+
+    .field-hint {
+      font-size: 12px;
+      color: #57606a;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="url"] {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #24292f;
+      background: #ffffff;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="url"]:focus {
+      border-color: #0969da;
+      box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    button {
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background-color: #2da44e;
+      color: white;
+      border-color: rgba(31, 35, 40, 0.15);
+    }
+
+    .btn-primary:hover { background-color: #2c974b; }
+
+    .btn-secondary {
+      background-color: #f6f8fa;
+      color: #24292f;
+      border-color: rgba(31, 35, 40, 0.15);
+    }
+
+    .btn-secondary:hover { background-color: #f3f4f6; }
+
+    #status {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #1a7f37;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>SSPCloud Launcher Settings</h1>
+  <form id="options-form">
+    <div class="field">
+      <label for="baseUrl">SSPCloud Base URL</label>
+      <div class="field-hint">The launcher URL for your SSPCloud instance.</div>
+      <input type="url" id="baseUrl" name="baseUrl"
+        placeholder="https://datalab.sspcloud.fr/launcher/ide/vscode-python">
+    </div>
+
+    <div class="field">
+      <label for="version">VSCode Version</label>
+      <input type="text" id="version" name="version" placeholder="2.5.0">
+    </div>
+
+    <div class="field">
+      <label for="s3">S3 Region</label>
+      <input type="text" id="s3" name="s3" placeholder="region-79669f20">
+    </div>
+
+    <div class="field">
+      <label for="personalInit">Init Script URL</label>
+      <div class="field-hint">Shell script executed on workspace startup.</div>
+      <input type="url" id="personalInit" name="personalInit"
+        placeholder="https://raw.githubusercontent.com/…/init.sh">
+    </div>
+
+    <div class="field">
+      <label for="vaultSecret">Vault Secret</label>
+      <input type="text" id="vaultSecret" name="vaultSecret" placeholder="OPENAI-LLM">
+    </div>
+
+    <div class="field">
+      <label for="persistenceSize">Persistence Size</label>
+      <input type="text" id="persistenceSize" name="persistenceSize" placeholder="20Gi">
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn-primary">Save Settings</button>
+      <button type="button" id="reset-btn" class="btn-secondary">Reset to Defaults</button>
+    </div>
+    <div id="status"></div>
+  </form>
+
+  <script src="options.js"></script>
+</body>
+</html>

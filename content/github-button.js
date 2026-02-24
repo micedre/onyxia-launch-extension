@@ -1,10 +1,23 @@
+/* global buildSSPCloudURL, getRepositoryCloneURL */
 (function() {
-  // Exit early if not on a repository page
+  // Exit early if not on a two-segment path (owner/repo pattern)
   const currentPath = window.location.pathname;
   const repoPathRegex = /^\/[^\/]+\/[^\/]+\/?$/;
   if (!repoPathRegex.test(currentPath)) {
     return;
   }
+
+  // Debounced MutationObserver — disconnects once button is placed
+  let debounceTimer;
+  const observer = new MutationObserver(() => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      if (!document.getElementById('sspcloud-launch-btn') && isToolbarAvailable()) {
+        initButton();
+        observer.disconnect();
+      }
+    }, 200);
+  });
 
   // Handle DOM loading states
   if (document.readyState === 'loading') {
@@ -13,42 +26,38 @@
     initButton();
   }
 
-  // Observe for added dynamic content
-  const observer = new MutationObserver((mutations) => {
-    const button = document.getElementById('sspcloud-launch-btn');
-    if (!button && isToolbarAvailable()) {
-      initButton();
-    }
-  });
-
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true
   });
 
   function initButton() {
-    // Skip if already exists
     if (document.getElementById('sspcloud-launch-btn')) {
       return;
     }
 
-    // Apply styles
+    // Secondary check: verify this is actually a repository page, not a user
+    // settings page or other GitHub path that happens to match the regex
+    const isRepoPage = document.querySelector(
+      '#repository-container-header, .js-clone-url, [data-repository-hovercards-enabled]'
+    );
+    if (!isRepoPage) {
+      return;
+    }
+
     const styleTag = document.createElement('style');
     styleTag.textContent = getButtonStyles();
     document.head.appendChild(styleTag);
 
-    // Build button
     const buttonElement = document.createElement('button');
     buttonElement.innerHTML = getButtonHTML();
     buttonElement.id = 'sspcloud-launch-btn';
     buttonElement.className = 'sspcloud-github-button';
-
-    // Add click handler
     buttonElement.addEventListener('click', handleClick);
 
-    // Try to insert
     if (insertButtonIntoToolbar(buttonElement)) {
       console.log('[SSPCloud] Button injected successfully');
+      observer.disconnect();
     } else {
       console.log('[SSPCloud] Could not find toolbar, button not injected');
     }
@@ -93,6 +102,26 @@
       .sspcloud-github-button:after {
         content: '';
       }
+
+      .sspcloud-toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #c0392b;
+        color: white;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        z-index: 99999;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        opacity: 1;
+        transition: opacity 0.4s ease;
+      }
+
+      .sspcloud-toast.fade-out {
+        opacity: 0;
+      }
     `;
   }
 
@@ -113,33 +142,22 @@
       '#repo-links-bar'
     ];
 
-    // Try to find toolbar
     for (const selector of toolbarSelectors) {
       const element = document.querySelector(selector);
       if (element) {
         const rect = element.getBoundingClientRect();
         const style = window.getComputedStyle(element);
         if (rect.width > 0 && style.display !== 'none' && style.visibility !== 'hidden') {
-          // Found a viable toolbar
-          const spacing = document.createElement('span');
-          spacing.className = 'sspcloud-spacing';
-          spacing.textContent = '量';
-          element.appendChild(spacing);
           element.appendChild(buttonElement);
           return true;
         }
       }
     }
 
-    // Alternative approach: find existing buttons and insert nearby
+    // Alternative: find existing Watch/Fork/Star button groups
     const existingButtons = document.querySelectorAll('span[id]:not([id^="actions-"])');
     for (const existingBtn of existingButtons) {
       if (existingBtn.children.length > 1 && !existingBtn.querySelector('a[data-hovercard-type="repository"]')) {
-        // This is one of the Watch/Fork/Star buttons
-        const spacing = document.createElement('span');
-        spacing.className = 'sspcloud-spacing';
-        spacing.textContent = '量';
-        existingBtn.appendChild(spacing);
         existingBtn.appendChild(buttonElement);
         return true;
       }
@@ -167,89 +185,45 @@
     return false;
   }
 
+  const DEFAULT_CONFIG = {
+    baseUrl: 'https://datalab.sspcloud.fr/launcher/ide/vscode-python',
+    version: '2.5.0',
+    s3: 'region-79669f20',
+    personalInit:
+      'https://raw.githubusercontent.com/micedre/sspcloud-init-scripts/refs/heads/main/vscode/init.sh',
+    vaultSecret: 'OPENAI-LLM',
+    persistenceSize: '20Gi'
+  };
+
   function handleClick() {
     const cloneURL = getRepositoryCloneURL();
     if (!cloneURL) {
       console.error('[SSPCloud] Could not determine repository URL');
+      showToast('Could not detect repository URL');
       return;
     }
 
-    const targetURL = buildSSPCloudURL(cloneURL);
-    window.open(targetURL, '_blank');
-  }
-
-  function getRepositoryCloneURL() {
-    // Try various GitHub clone URL extraction methods
-    const locations = [
-      'form textarea[name="clone"]',
-      'span.js-copy-repository-permalink',
-      'a[title*="SSH"], a[title*="HTTPS"]',
-      '.blob-row [class*="commit"], .file-actions [class*="link"]:nocopy',
-      'a[href*="/"]',
-      '.js-clone-url',
-      'div.d-none a'
-    ];
-
-    for (const selector of locations) {
-      const element = document.querySelector(selector);
-      if (element) {
-        // Get text content or href
-        const url = (element.textContent?.trim() || element.href || '').trim();
-        // Remove trailing spaces
-        const cleanedUrl = url.replace(/\s+/g, ' ').trim();
-        // Remove extra whitespace
-        const finalUrl = cleanedUrl.replace(/\s+/g, ' ');
-        if (finalUrl && !finalUrl.includes('javascript:')) {
-          console.log('[SSPCloud] Found URL at', selector, ':', finalUrl);
-          return finalUrl;
-        }
+    browser.storage.local.get(DEFAULT_CONFIG).then(config => {
+      const targetURL = buildSSPCloudURL(cloneURL, config);
+      const newWindow = window.open(targetURL, '_blank');
+      if (!newWindow) {
+        showToast('Popup was blocked. Please allow popups for this site.');
       }
-    }
-
-    // Fallback - construct from current URL
-    const path = window.location.pathname;
-    const parts = path.split('/').filter(Boolean);
-
-    if (parts.length >= 2) {
-      // Try HTTPS first
-      const httpsUrl = `https://github.com/${parts[0]}/${parts[1]}`;
-      console.log('[SSPCloud] Using HTTPS fallback URL:', httpsUrl);
-      return httpsUrl;
-    }
-
-    return null;
+    }).catch(() => {
+      // Fallback if storage API is unavailable
+      const targetURL = buildSSPCloudURL(cloneURL, DEFAULT_CONFIG);
+      window.open(targetURL, '_blank');
+    });
   }
 
-  function buildSSPCloudURL(cloneURL) {
-    // Determine if this is SSH or HTTPS
-    const isSSH = cloneURL.startsWith('git@');
-    let repoName = cloneURL.replace(/\.git$/, '');
-
-    if (isSSH) {
-      // Remove git@github.com: and .git suffix
-      repoName = repoName.replace(/^git@github\.com:/, '').replace(/\.git$/, '');
-    } else if (repoName.startsWith('https://github.com/')) {
-      repoName = repoName.replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '');
-    }
-
-    // URL-encode properly
-    const encodedRepo = encodeURIComponent(repoName);
-
-    // Base URL and parameters
-    const baseUrl = 'https://datalab.sspcloud.fr/launcher/ide/vscode-python';
-
-    const params = new URLSearchParams({
-      name: 'vscode-generic',
-      version: '2.5.0',
-      s3: 'region-79669f20',
-      'persistence.size': '量的20Gi量',
-      'init.personalInit': 'https://raw.githubusercontent.com/micedre/sspcloud-init-scripts/refs/heads/main/vscode/init.sh',
-      'kubernetes.role': '量的admin量',
-      'vault.secret': '量的OPENAI-LLM量',
-      'git.repository': encodedRepo,
-      'git.asCodeServerRoot': 'true'
-    });
-
-    return `${baseUrl}?${params.toString()}`;
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'sspcloud-toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 400);
+    }, 3000);
   }
 })();

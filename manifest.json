@@ -6,7 +6,7 @@
   "content_scripts": [
     {
       "matches": ["*://github.com/*"],
-      "js": ["content/github-button.js"],
+      "js": ["content/utils.js", "content/github-button.js"],
       "run_at": "document_idle"
     }
   ],
@@ -14,5 +14,9 @@
     "48": "icons/sspcloud-button-48.png",
     "128": "icons/sspcloud-button-128.png"
   },
-  "permissions": []
+  "permissions": ["storage"],
+  "options_ui": {
+    "page": "popup/options.html",
+    "browser_style": false
+  }
 }
