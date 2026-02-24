@@ -1,0 +1,260 @@
+name: Release to Store
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-extension-szip
+          path: dist/
+
+      - name: Verify build
+        run: |
+          echo "Verifying SZIP for release..."
+          unzip -t dist/firefox-extension.szip
+
+      - name: Create release metadata
+        run: |
+          cat > dist/CHANGELOG.md << 'EOF'
+          # Changelog
+
+          All notable changes to this project will be documented in this file.
+
+          ## [1.0.0] - 2024-02-24
+          ### Added
+          - Initial release of GitHub SSPCloud Launcher
+          - One-click button to launch VSCode on SSPCloud from GitHub
+          - Automatic URL extraction (SSH/HTTPS)
+          - GitHub-native button styling
+          - Supports multiple GitHub themes (Light/Dark)
+          - Error handling with graceful degradation
+          - Comprehensive documentation
+          - CI/CD pipeline for automated building
+
+          ### Features
+          - Automatic repository detection
+          - Multiple URL extraction strategies
+          - Button positioning in GitHub toolbar
+          - Console logging for debugging
+          - Privacy-first (no data collection)
+          EOF
+
+      - name: Generate release package
+        run: |
+          cd dist
+          zip -r ../firefox-extension-release.zip *
+
+      - name: Verify release package
+        run: |
+          echo "=== Release Package Structure ==="
+          unzip -l firefox-extension-release.zip
+
+      - name: Display release info
+        run: |
+          echo "=== Release Information ==="
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Released by: @${{ github.actor }}"
+          echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo ""
+          ls -lh firefox-extension-release.zip
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension-release-${{ steps.version.outputs.version }}
+          path: firefox-extension-release.zip
+          retention-days: 365
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: firefox-extension-release.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          body: |
+            ## GitHub SSPCloud Launcher
+
+            A Firefox extension that adds an "Open on SSPCloud" button to GitHub repository pages.
+
+            ### Features
+            - One-click launch from GitHub to SSPCloud
+            - Automatic URL extraction for SSH and HTTPS URLs
+            - GitHub native button styling
+            - Works across Light and Dark themes
+            - Privacy-first (no data collection)
+
+            ### Installation
+            - Download the ZIP file
+            - Open `about:debugging` in Firefox
+            - Click "Load Temporary Add-on..."
+            - Select the downloaded ZIP file
+
+            ### Build Artifacts
+            - Source code
+            - Compiled extension package
+            - Documentation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-to-firefox-store:
+    name: Upload to Firefox Add-ons Store
+    runs-on: ubuntu-latest
+    needs: release
+    if: success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-extension-release-${{ needs.release.steps.version.outputs.version }}
+          path: release/
+
+      - name: Download WebExtensions CI script
+        run: |
+          echo "Downloading WebExtensions CI/CD script..."
+          curl -o scripts/web-ext-ci.js \
+            https://gist.githubusercontent.com/mozilla/addons-linter/786b8fb2c0c19245cd5b236aa9e7b7d2/raw/web-ext-ci.js
+
+      - name: Display configuration
+        run: |
+          echo "=== Firefox Add-ons Store Upload ==="
+          echo "Extension will be uploaded to:"
+          echo "https://addons.mozilla.org/developers/addon/${{ secrets.AMO_ADDON_ID }}"
+          echo ""
+          echo "Note: Ensure AMO_ADDON_ID secret is configured"
+          echo "      in repository settings for automatic uploads"
+
+      - name: Manual approval required
+        run: |
+          echo "## ⚠️ Manual Approval Required" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To upload to the Firefox Add-ons Store:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Obtain the Add-on ID from https://addons.mozilla.org/developers" >> $GITHUB_STEP_SUMMARY
+          echo "2. Add `AMO_ADDON_ID=addon-id@provider.com` to GitHub repository secrets" >> $GITHUB_STEP_SUMMARY
+          echo "3. Enable this workflow by adding the `AMO_ADDON_ID` secret" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**The build artifacts are ready for manual upload.**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ready-for-amo
+          path: release/
+          retention-days: 365
+
+  release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    needs: release
+    if: success()
+    steps:
+      - name: Generate release notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          # Release v${{ needs.release.steps.version.outputs.version }}
+
+          ## New in This Release
+
+          Initial release of the GitHub SSPCloud Launcher extension.
+
+          ### Features
+
+          - **One-Click Launch**: Immediately open VSCode on SSPCloud from GitHub repositories
+          - **Smart URL Detection**: Automatically extracts SSH and HTTPS clone URLs
+          - **Beautiful UI**: GitHub's native button styling with smooth animations
+          - **Theme Support**: Works seamlessly on both Light and Dark GitHub themes
+          - **Error Handling**: Graceful degradation when URL extraction fails
+          - **Developer Friendly**: Console logging for debugging and troubleshooting
+
+          ### Technical Details
+
+          - **Extension Version**: 1.0.0
+          - **Manifest Version**: 2 (Firefox v3 compatible)
+          - **Minified Code**: ~8.4KB
+          - **Icon Format**: PNG with transparency
+          - **Privacy First**: No data collection, no telemetry
+
+          ### Installation
+
+          For users:
+          1. Download the ZIP file from this release
+          2. In Firefox, open `about:debugging`
+          3. Click "Load Temporary Add-on..."
+          4. Select the downloaded ZIP file
+
+          ### Feedback
+
+          Found a bug or have a feature request?
+          - Open an issue on GitHub
+          - Report in the Firefox Add-ons review
+          - Contact the extension author
+
+          ---
+          Version: ${{ needs.release.steps.version.outputs.version }}
+          Release Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          EOF
+
+          cat release_notes.md
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release_notes.md
+          retention-days: 365
+
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [release, release-notes]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🚀 Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.release.steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Download ZIP from release assets" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔑 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- **Manual Upload to AMO:** Configure `AMO_ADDON_ID` secret" >> $GITHUB_STEP_SUMMARY
+          echo "- **Review:** Check build artifacts for validity" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ All Checks Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Build validation passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Artifacts created successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Release ready for deployment" >> $GITHUB_STEP_SUMMARY

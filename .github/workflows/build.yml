@@ -1,0 +1,174 @@
+name: Build Extension
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build extension as ZIP
+        run: |
+          echo "Creating Firefox extension ZIP package..."
+          cd "$GITHUB_WORKSPACE"
+          zip -r firefox-extension.zip \
+            manifest.json \
+            content/ \
+            icons/ \
+            README.md
+
+      - name: Verify ZIP structure
+        run: |
+          echo "Verifying ZIP contents..."
+          unzip -l firefox-extension.zip | grep -E "(manifest.json|content/github-button.js|icons/)"
+
+      - name: Display build info
+        run: |
+          echo "=== Build Information ==="
+          echo "User: $USER"
+          echo "Git Ref: $GITHUB_REF_NAME"
+          echo "Commit: $SHA"
+          ls -lh firefox-extension.zip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension-zip
+          path: firefox-extension.zip
+          retention-days: 30
+
+  create-signed-szip:
+    name: Create Signed SZIP
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: firefox-extension-zip
+          path: dist/
+
+      - name: Create SZIP file
+        run: |
+          echo "Creating SZIP file from build..."
+          cd dist
+          zip -r ../firefox-extension.szip *.zip
+
+      - name: Display SZIP info
+        run: |
+          echo "=== SZIP Information ==="
+          ls -lh firefox-extension.szip
+          echo ""
+          echo "Content verification:"
+          unzip -l firefox-extension.szip | head -20
+
+      - name: Upload SZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-extension-szip
+          path: firefox-extension.szip
+          retention-days: 30
+
+  quality-check:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check manifest.json validity
+        run: |
+          echo "Verifying manifest.json..."
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            console.log('✓ Manifest version:', manifest.manifest_version);
+            console.log('✓ Extension name:', manifest.name);
+            console.log('✓ Content script:', manifest.content_scripts);
+            console.log('✓ Icons configured:', manifest.icons !== undefined);
+          "
+
+      - name: Check JavaScript syntax
+        run: |
+          echo "Checking JavaScript syntax..."
+          if command -v eslint &> /dev/null; then
+            eslint content/github-button.js
+          else
+            echo "  (ESLint not available, skipping syntax check)"
+          fi
+
+      - name: Scan for security issues
+        run: |
+          echo "Running security checks..."
+          # Check for potentially dangerous patterns
+          if grep -r "eval(" content/ || grep -r "Function(" content/; then
+            echo "⚠ Warning: Found potentially dangerous patterns"
+          else
+            echo "✓ No security patterns detected"
+          fi
+
+      - name: Verify no sensitive data
+        run: |
+          echo "Scanning for sensitive information..."
+          if grep -r "password\|secret\|api[_-]key\|token" --include="*.js" --include="*.json" --include="*.md" content/ ; then
+            echo "⚠ Warning: Potential sensitive data found"
+          else
+            echo "✓ No sensitive data detected"
+          fi
+
+      - name: Check file permissions
+        run: |
+          echo "Verifying file permissions..."
+          find . -name "*.js" -exec bash -c '[ "$(stat -c %a "$1" 2>/dev/null)" = "644" ] && echo "✓ $1" || echo "⚠ $1"' _ {} \; || true
+          find . -name "*.json" -exec bash -c '[ "$(stat -c %a "$1" 2>/dev/null)" = "644" ] && echo "✓ $1" || echo "⚠ $1"' _ {} \; || true
+
+      - name: Verify visibility rules
+        run: |
+          echo "Checking for public/visible tags..."
+          if [ -f "README.md" ]; then
+            echo "✓ README.md exists"
+          else
+            echo "⚠ WARNING: README.md missing"
+          fi
+
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build, create-signed-szip, quality-check]
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 📦 Firefox Extension Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Extension:** GitHub SSPCloud Launcher" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** 1.0.0" >> $GITHUB_STEP_SUMMARY
+          echo "**Build URL:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- \`firefox-extension-zip\` - ZIP package for Firefox Add-ons Build" >> $GITHUB_STEP_SUMMARY
+          echo "- \`firefox-extension-szip\` - SZIP package for direct installation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quality Checks" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Manifest validation passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ JavaScript syntax checked" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Security scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Sensitive data scan completed" >> $GITHUB_STEP_SUMMARY

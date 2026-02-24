@@ -1,0 +1,24 @@
+# Build artifacts
+firefox-extension.zip
+firefox-extension.szip
+firefox-extension-release.zip
+*.szip
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp

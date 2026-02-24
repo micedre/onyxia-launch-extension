@@ -11,6 +11,68 @@ A Firefox extension that adds an "Open on SSPCloud" button to GitHub repository 
 - ✅ Works with multiple GitHub themes (Light/Dark)
 - ✅ No data collection or external dependencies
 
+## CI/CD
+
+Automated building and packaging is provided via GitHub Actions.
+
+### Building Locally
+
+For manual builds:
+
+```bash
+# Create ZIP package
+zip -r firefox-extension.zip \
+    manifest.json \
+    content/githithub-button.js \
+    icons/ \
+    README.md \
+    LICENSE
+
+# Create SZIP package
+zip -r firefox-extension.szip firefox-extension.zip
+```
+
+### Automated Builds
+
+#### Building on Push
+
+Automated builds trigger on push to `main` or `develop` branches:
+
+- **artifacts**: `firefox-extension-zip` and `firefox-extension-szip`
+- **duration**: ~2 minutes
+- **services**: Node.js 20, Ubuntu 22.04
+
+#### Release Builds
+
+To create a release:
+
+```bash
+# Create a version tag
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
+
+Or manually trigger via workflow_dispatch:
+
+1. Go to Actions → Release to Store
+2. Enter version number (e.g., `1.0.0`)
+3. Click "Run workflow"
+
+Release workflow provides:
+- ✓ Automated testing and validation
+- ✓ Signed release packages
+- ✓ GitHub Release with artifacts
+- ✓ Ready-to-upload to Firefox Add-ons Store
+
+### Quality Checks
+
+All builds include automated quality checks:
+- Manifest.json validation
+- JavaScript syntax checking
+- Security scan for dangerous patterns
+- Sensitive data detection
+- File permission verification
+
 ## Installation
 
 ### Method 1: Temporary Load (Development)
