@@ -185,30 +185,39 @@
     personalInit:
       'https://raw.githubusercontent.com/micedre/sspcloud-init-scripts/refs/heads/main/vscode/init.sh',
     vaultSecret: 'OPENAI-LLM',
-    persistenceSize: '20Gi'
+    persistenceSize: '20Gi',
+    gitUrlTemplate: ''
   };
 
   function handleClick() {
-    // Fetch settings including the new gitUrlTemplate field
+    // Fetch settings including the gitUrlTemplate field
     browser.storage.local.get(DEFAULT_CONFIG).then(config => {
-      const gitUrlTemplate = config.gitUrlTemplate || '';
-      const cloneURL = getRepositoryCloneURL(gitUrlTemplate);
-
-      if (!cloneURL) {
-        console.error('[SSPCloud] Could not determine repository URL');
-        showToast('Could not detect repository URL');
+      // Extract owner and repo from current GitHub page
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length < 2) {
+        console.error('[SSPCloud] Could not determine owner/repo');
+        showToast('Could not detect repository');
         return;
       }
 
-      const targetURL = buildSSPCloudURL(cloneURL, config);
+      const { owner, repo } = {
+        owner: parts[0],
+        repo: parts[1]
+      };
+
+      // Build SSPCloud URL with or without template
+      const targetURL = buildSSPCloudURL(owner, repo, config, config.gitUrlTemplate);
+
       const newWindow = window.open(targetURL, '_blank');
       if (!newWindow) {
         showToast('Popup was blocked. Please allow popups for this site.');
       }
     }).catch(() => {
-      const gitUrlTemplate = '';
-      const cloneURL = getRepositoryCloneURL(gitUrlTemplate);
-      const targetURL = buildSSPCloudURL(cloneURL, DEFAULT_CONFIG);
+      // Fallback: use defaults
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length < 2) return;
+      const { owner, repo } = { owner: parts[0], repo: parts[1] };
+      const targetURL = buildSSPCloudURL(owner, repo, DEFAULT_CONFIG, DEFAULT_CONFIG.gitUrlTemplate);
       window.open(targetURL, '_blank');
     });
   }

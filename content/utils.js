@@ -1,23 +1,60 @@
 /* global module */
 
 /**
- * Build the SSPCloud launcher URL for a given repository clone URL.
- * @param {string} cloneURL - HTTPS or SSH clone URL of the repository
+ * Extract owner and repo from the current GitHub page URL.
+ * @returns {Object|null} {owner, repo} or null if not on a repo page
+ */
+function getRepositoryOwnerAndRepo() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      owner: parts[0],
+      repo: parts[1]
+    };
+  }
+  return null;
+}
+
+/**
+ * Normalize a repository URL (strip .git suffix, convert SSH to HTTPS)
+ * @param {string} repoUrl - Repository URL (could be HTTPS or SSH)
+ * @returns {string} Normalized HTTPS URL without .git suffix
+ */
+function normalizeRepoUrl(repoUrl) {
+  // Normalize to full HTTPS URL, strip .git suffix
+  let normalized = repoUrl.replace(/\.git$/, '');
+
+  if (normalized.startsWith('git@github.com:')) {
+    // SSH → HTTPS: git@github.com:org/repo → https://github.com/org/repo
+    normalized = 'https://github.com/' + normalized.replace(/^git@github\.com:/, '');
+  }
+
+  return normalized;
+}
+
+/**
+ * Build the SSPCloud launcher URL for a given repository.
+ * @param {string} owner - GitHub repository owner
+ * @param {string} repo - GitHub repository name
  * @param {Object} [config] - Optional configuration overrides
+ * @param {string} [urlTemplate] - Optional complete SSPCloud URL template with {owner} and {repo} placeholders
  * @returns {string} SSPCloud launcher URL
  */
-function buildSSPCloudURL(cloneURL, config) {
+function buildSSPCloudURL(owner, repo, config, urlTemplate) {
   const cfg = config || {};
 
-  // Normalize to full HTTPS URL, strip .git suffix
-  let repoUrl = cloneURL.replace(/\.git$/, '');
-
-  if (repoUrl.startsWith('git@github.com:')) {
-    // SSH → HTTPS: git@github.com:org/repo → https://github.com/org/repo
-    repoUrl = 'https://github.com/' + repoUrl.replace(/^git@github\.com:/, '');
+  // If a URL template is provided with placeholders, use it
+  if (urlTemplate && urlTemplate.includes('{owner}') && urlTemplate.includes('{repo}')) {
+    // Substitute placeholders in the URL template
+    const template = urlTemplate
+      .replace('{owner}', owner)
+      .replace('{repo}', repo);
+    console.log('[SSPCloud] Using URL template:', template);
+    return template;
   }
-  // HTTPS URLs are already in correct format
 
+  // Fallback: Build URL using current logic with owner/repo
+  const ownerAndRepo = `${owner}/${repo}`;
   const baseUrl = cfg.baseUrl || 'https://datalab.sspcloud.fr/launcher/ide/vscode-python';
   const version = cfg.version || '2.5.0';
   const s3 = cfg.s3 || 'region-79669f20';
@@ -34,43 +71,14 @@ function buildSSPCloudURL(cloneURL, config) {
     'init.personalInit': `\u00AB${personalInit}\u00BB`,
     'kubernetes.role': '\u00ABadmin\u00BB',
     'vault.secret': `\u00AB${vaultSecret}\u00BB`,
-    'git.repository': `\u00AB${repoUrl}\u00BB`,
+    'git.repository': `\u00AB${ownerAndRepo}\u00BB`,
     'git.asCodeServerRoot': 'true'
   });
 
   return `${baseUrl}?${params.toString()}`;
 }
 
-/**
- * Extract the repository HTTPS URL from the current GitHub page URL.
- * Supports optional URL template with {owner} and {repo} placeholders.
- * @param {string} [gitUrlTemplate] - Optional URL template string with {owner}/{repo} placeholders
- * @returns {string|null} HTTPS repository URL, or null if not on a repo page
- */
-function getRepositoryCloneURL(gitUrlTemplate = '') {
-  const parts = window.location.pathname.split('/').filter(Boolean);
-  if (parts.length >= 2) {
-    const owner = parts[0];
-    const repo = parts[1];
-
-    // If a template is configured, use it with placeholder substitution
-    if (gitUrlTemplate && gitUrlTemplate.includes('{owner}') && gitUrlTemplate.includes('{repo}')) {
-      const url = gitUrlTemplate
-        .replace('{owner}', owner)
-        .replace('{repo}', repo);
-      console.log('[SSPCloud] Using URL template:', url);
-      return url;
-    }
-
-    // Fallback: auto-detect from current page URL
-    const url = `https://github.com/${owner}/${repo}`;
-    console.log('[SSPCloud] Auto-detected repository URL:', url);
-    return url;
-  }
-  return null;
-}
-
 // Export for Node.js/Jest testing
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildSSPCloudURL, getRepositoryCloneURL };
+  module.exports = { getRepositoryOwnerAndRepo, buildSSPCloudURL };
 }
