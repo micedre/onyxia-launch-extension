@@ -36,15 +36,6 @@
       return;
     }
 
-    // Secondary check: verify this is actually a repository page, not a user
-    // settings page or other GitHub path that happens to match the regex
-    const isRepoPage = document.querySelector(
-      '#repository-container-header, .js-clone-url, [data-repository-hovercards-enabled]'
-    );
-    if (!isRepoPage) {
-      return;
-    }
-
     const styleTag = document.createElement('style');
     styleTag.textContent = getButtonStyles();
     document.head.appendChild(styleTag);
