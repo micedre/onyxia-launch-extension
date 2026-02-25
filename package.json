@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest",
     "lint": "eslint content/ popup/",
-    "build": "web-ext build --ignore-files 'node_modules' --ignore-files 'tests' --ignore-files '*.test.js' --ignore-files '.git' --ignore-files '.claude' --ignore-files 'package-lock.json' --ignore-files 'package.json' --ignore-files 'npm-debug.log' --source-dir . --artifacts-dir ."
+    "build": "web-ext build --source-dir . --artifacts-dir . --ignore-files node_modules tests '*.test.js' package.json package-lock.json npm-debug.log .eslintrc.json .github .gitignore .webextignore README.md .claude"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
