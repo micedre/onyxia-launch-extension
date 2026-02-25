@@ -1,0 +1,12 @@
+node_modules/
+*.test.js
+tests/
+.git/
+.claude/
+package-lock.json
+package.json
+npm-debug.log
+.eslintrc.json
+.github/
+.gitignore
+README.md
