@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "GitHub SSPCloud Launcher",
   "version": "1.0.0",
-  "description": "Add a button to GitHub repository pages for one-click launch of VSCode on SSPCloud",
+  "description": "Add a button to GitHub and GitLab repository pages for one-click launch of VSCode on SSPCloud",
   "content_scripts": [
     {
       "matches": ["*://github.com/*"],
@@ -10,11 +10,15 @@
       "run_at": "document_idle"
     }
   ],
+  "background": {
+    "scripts": ["background.js"]
+  },
   "icons": {
     "48": "icons/sspcloud-button-48.png",
     "128": "icons/sspcloud-button-128.png"
   },
   "permissions": ["storage"],
+  "optional_permissions": ["<all_urls>"],
   "options_ui": {
     "page": "popup/options.html",
     "browser_style": false

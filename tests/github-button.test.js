@@ -58,6 +58,12 @@ describe('buildSSPCloudURL with URL template', () => {
     const url = buildSSPCloudURL('my-org', 'my-repo', {}, template);
     expect(url).toBe('https://example.com/?repo=my-repo&name=my-repo&owner=my-org&org=my-org');
   });
+
+  test('works with GitLab-style nested group owner', () => {
+    const template = 'https://datalab.sspcloud.fr/launcher/ide/vscode-python?git.repository=«https://git.lab.sspcloud.fr/{owner}/{repo}»';
+    const url = buildSSPCloudURL('ssplab/experimentation-bdf', 'copain', {}, template);
+    expect(url).toBe('https://datalab.sspcloud.fr/launcher/ide/vscode-python?git.repository=«https://git.lab.sspcloud.fr/ssplab/experimentation-bdf/copain»');
+  });
 });
 
 // ─── getRepositoryOwnerAndRepo ─────────────────────────────────────────────

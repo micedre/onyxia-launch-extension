@@ -1,6 +1,6 @@
 /* global buildSSPCloudURL */
 (function() {
-  console.log('[SSPCloud] loaded, path:', window.location.pathname);
+  console.log('[SSPCloud] GitLab content script loaded, path:', window.location.pathname);
 
   let debounceTimer;
   const observer = new MutationObserver(() => {
@@ -8,13 +8,11 @@
     debounceTimer = setTimeout(tryInject, 200);
   });
 
-  // GitHub uses Turbo (SPA navigation): the content script only runs on full
-  // page loads, so we listen for turbo:load to handle in-page navigation too.
-  document.addEventListener('turbo:load', () => {
-    console.log('[SSPCloud] turbo:load, path:', window.location.pathname);
+  // GitLab uses Turbolinks for SPA navigation
+  document.addEventListener('turbolinks:load', () => {
+    console.log('[SSPCloud] turbolinks:load, path:', window.location.pathname);
     const stale = document.getElementById('sspcloud-launch-btn');
     if (stale) stale.remove();
-    // Re-arm the observer for new page content
     observer.observe(document.documentElement, { childList: true, subtree: true });
     tryInject();
   });
@@ -30,12 +28,74 @@
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
-  function isRepoPage() {
-    return /^\/[^\/]+\/[^\/]+\/?$/.test(window.location.pathname);
+  function isProjectPage() {
+    // GitLab project pages have body[data-page] starting with "projects:"
+    const dataPage = document.body && document.body.getAttribute('data-page');
+    if (dataPage && dataPage.startsWith('projects:')) return true;
+    // Fallback: check for project-page class
+    if (document.body && document.body.classList.contains('project-page')) return true;
+    return false;
+  }
+
+  function isProjectRootPage() {
+    if (!isProjectPage()) return false;
+    // Check data-page for the show action (project root)
+    const dataPage = document.body.getAttribute('data-page');
+    if (dataPage === 'projects:show') return true;
+    // Also match tree pages (browsing the repo)
+    if (dataPage && dataPage.startsWith('projects:tree:')) return true;
+    // Fallback: accept if we can extract owner/repo from URL
+    return getGitLabOwnerAndRepo() !== null;
+  }
+
+  function getGitLabOwnerAndRepo() {
+    // GitLab uses nested groups — e.g. /ssplab/experimentation-bdf/copain
+    // The project path is embedded in data attributes or can be parsed from URL
+    // Try data attribute first
+    const projectEl = document.querySelector('[data-project-full-path]');
+    if (projectEl) {
+      const fullPath = projectEl.getAttribute('data-project-full-path');
+      const segments = fullPath.split('/').filter(Boolean);
+      if (segments.length >= 2) {
+        const repo = segments[segments.length - 1];
+        const owner = segments.slice(0, -1).join('/');
+        return { owner, repo };
+      }
+    }
+
+    // Fallback: parse from URL pathname
+    // We need to figure out where the project path ends
+    // GitLab project URLs: /<namespace>/<project> or /<group>/<subgroup>/<project>
+    // Known non-project path suffixes to strip
+    const pathname = window.location.pathname;
+    const suffixes = [
+      /\/-\/.*$/,        // /-/ marks GitLab internal routes
+      /\/tree\/.*$/,     // /tree/branch
+      /\/blob\/.*$/,     // /blob/branch/file
+      /\/commits\/.*$/,  // /commits/branch
+      /\/merge_requests.*$/,
+      /\/issues.*$/,
+      /\/pipelines.*$/,
+      /\/settings.*$/
+    ];
+
+    let projectPath = pathname;
+    for (const suffix of suffixes) {
+      projectPath = projectPath.replace(suffix, '');
+    }
+
+    const segments = projectPath.split('/').filter(Boolean);
+    if (segments.length >= 2) {
+      const repo = segments[segments.length - 1];
+      const owner = segments.slice(0, -1).join('/');
+      return { owner, repo };
+    }
+
+    return null;
   }
 
   function tryInject() {
-    if (!isRepoPage()) return;
+    if (!isProjectPage()) return;
     if (document.getElementById('sspcloud-launch-btn')) return;
     initButton();
   }
@@ -43,7 +103,6 @@
   // ─── button lifecycle ────────────────────────────────────────────────────────
 
   function initButton() {
-    // Inject styles once per page
     if (!document.getElementById('sspcloud-styles')) {
       const styleTag = document.createElement('style');
       styleTag.id = 'sspcloud-styles';
@@ -58,10 +117,9 @@
     buttonElement.addEventListener('click', handleClick);
 
     if (insertButtonIntoToolbar(buttonElement)) {
-      console.log('[SSPCloud] Button injected successfully');
+      console.log('[SSPCloud] GitLab button injected successfully');
       observer.disconnect();
     }
-    // If insertion failed the observer stays connected and retries on next DOM change
   }
 
   function getButtonStyles() {
@@ -85,6 +143,7 @@
         border: none;
         -webkit-appearance: none;
         vertical-align: middle;
+        margin-left: 8px;
       }
 
       .sspcloud-launch-button svg {
@@ -134,24 +193,18 @@
   // ─── toolbar insertion ───────────────────────────────────────────────────────
 
   function insertButtonIntoToolbar(buttonElement) {
-    // ① Modern GitHub (2024): ul.pagehead-actions holds Watch/Fork/Star as <li>s.
-    // Don't check width — the element has d-none d-md-inline so getBoundingClientRect
-    // may return 0 before the browser completes layout, even though it is present.
-    const actionsList = document.querySelector('ul.pagehead-actions');
-    if (actionsList) {
-      const li = document.createElement('li');
-      li.appendChild(buttonElement);
-      actionsList.appendChild(li);
-      return true;
-    }
+    // Try various GitLab UI selectors for button placement
+    const selectors = [
+      '.project-repo-buttons',      // Older GitLab
+      '.count-buttons',              // GitLab project action buttons
+      '.project-clone-holder',       // Near clone button
+      '.tree-controls',              // File tree controls
+      '.nav-controls',               // Navigation controls area
+      '.repo-buttons',               // Repository buttons area
+      '.gl-display-flex.gl-gap-3'    // Modern GitLab flex containers
+    ];
 
-    // ② Legacy GitHub toolbar selectors
-    for (const selector of [
-      '.react-jump-to-actions',
-      'div.form-inline',
-      '#repo-clone-provider',
-      '#repo-links-bar'
-    ]) {
+    for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element) {
         const rect = element.getBoundingClientRect();
@@ -163,14 +216,12 @@
       }
     }
 
-    // ③ Fallback: Watch/Fork/Star button-group spans
-    const existingButtons = document.querySelectorAll('span[id]:not([id^="actions-"])');
-    for (const existingBtn of existingButtons) {
-      if (existingBtn.children.length > 1 &&
-          !existingBtn.querySelector('a[data-hovercard-type="repository"]')) {
-        existingBtn.appendChild(buttonElement);
-        return true;
-      }
+    // Fallback: look for the fork/star buttons area
+    const forkBtn = document.querySelector('[data-testid="fork-button"]') ||
+                    document.querySelector('a[href*="/forks"]');
+    if (forkBtn && forkBtn.parentElement) {
+      forkBtn.parentElement.appendChild(buttonElement);
+      return true;
     }
 
     return false;
@@ -179,37 +230,29 @@
   // ─── click handler ───────────────────────────────────────────────────────────
 
   function handleClick() {
+    const hostname = window.location.hostname;
+
     browser.storage.local.get({ forges: [] }).then(({ forges }) => {
-      // Find the GitHub forge entry for the URL template
-      const forge = forges.find(f => f.domain === 'github.com');
+      const forge = forges.find(f => f.domain === hostname);
       const urlTemplate = forge ? forge.urlTemplate : '';
 
-      // Extract owner and repo from current GitHub page
-      const parts = window.location.pathname.split('/').filter(Boolean);
-      if (parts.length < 2) {
+      const ownerRepo = getGitLabOwnerAndRepo();
+      if (!ownerRepo) {
         console.error('[SSPCloud] Could not determine owner/repo');
         showToast('Could not detect repository');
         return;
       }
 
-      const { owner, repo } = {
-        owner: parts[0],
-        repo: parts[1]
-      };
-
+      const { owner, repo } = ownerRepo;
       const targetURL = buildSSPCloudURL(owner, repo, {}, urlTemplate);
 
       const newWindow = window.open(targetURL, '_blank');
       if (!newWindow) {
         showToast('Popup was blocked. Please allow popups for this site.');
       }
-    }).catch(() => {
-      // Fallback: use defaults
-      const parts = window.location.pathname.split('/').filter(Boolean);
-      if (parts.length < 2) return;
-      const { owner, repo } = { owner: parts[0], repo: parts[1] };
-      const targetURL = buildSSPCloudURL(owner, repo, {}, '');
-      window.open(targetURL, '_blank');
+    }).catch(err => {
+      console.error('[SSPCloud] Error loading forge config:', err);
+      showToast('Error loading settings');
     });
   }
 

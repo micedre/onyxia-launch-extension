@@ -13,7 +13,7 @@
       color: #24292f;
       background: #f6f8fa;
       padding: 24px;
-      min-width: 480px;
+      min-width: 520px;
     }
 
     h1 {
@@ -21,6 +21,19 @@
       font-weight: 600;
       margin-bottom: 20px;
       color: #1f2328;
+    }
+
+    h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #1f2328;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #d0d7de;
+    }
+
+    .section {
+      margin-bottom: 24px;
     }
 
     .field {
@@ -59,6 +72,27 @@
       box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
     }
 
+    .gitlab-instance {
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #ffffff;
+    }
+
+    .gitlab-instance .instance-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .gitlab-instance .instance-header span {
+      font-weight: 600;
+      font-size: 13px;
+      color: #57606a;
+    }
+
     .actions {
       display: flex;
       gap: 8px;
@@ -91,6 +125,25 @@
 
     .btn-secondary:hover { background-color: #f3f4f6; }
 
+    .btn-danger {
+      background-color: #cf222e;
+      color: white;
+      border-color: rgba(31, 35, 40, 0.15);
+      font-size: 12px;
+      padding: 4px 10px;
+    }
+
+    .btn-danger:hover { background-color: #a40e26; }
+
+    .btn-add {
+      background-color: #0969da;
+      color: white;
+      border-color: rgba(31, 35, 40, 0.15);
+      font-size: 13px;
+    }
+
+    .btn-add:hover { background-color: #0860ca; }
+
     #status {
       margin-top: 12px;
       font-size: 13px;
@@ -102,11 +155,20 @@
 <body>
   <h1>SSPCloud Launcher Settings</h1>
   <form id="options-form">
-    <div class="field">
-      <label for="gitUrlTemplate">SSPCloud URL Template</label>
-      <div class="field-hint">Complete URL template for SSPCloud launcher. Use {owner} and {repo} as placeholders for the GitHub repository owner and name.</div>
-      <input type="text" id="gitUrlTemplate" name="gitUrlTemplate"
-        placeholder="https://datalab.sspcloud.fr/launcher/ide/vscode-python?git.repository=«{owner}/{repo}»&version=2.5.0">
+    <div class="section">
+      <h2>GitHub (github.com)</h2>
+      <div class="field">
+        <label for="github-template">URL Template</label>
+        <div class="field-hint">Use {owner} and {repo} as placeholders. Leave empty for the default SSPCloud configuration.</div>
+        <input type="text" id="github-template"
+          placeholder="https://datalab.sspcloud.fr/launcher/ide/vscode-python?git.repository=«https://github.com/{owner}/{repo}»">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>GitLab Instances</h2>
+      <div id="gitlab-instances"></div>
+      <button type="button" id="add-gitlab-btn" class="btn-add">+ Add GitLab Instance</button>
     </div>
 
     <div class="actions">
