@@ -26,21 +26,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build extension as ZIP
+      - name: Build extension as XPI
         run: |
-          echo "Creating Firefox extension ZIP package..."
+          echo "Creating Firefox extension XPI package..."
           cd "$GITHUB_WORKSPACE"
-          zip -r firefox-extension.zip \
-            manifest.json \
-            content/ \
-            icons/ \
-            popup/ \
-            README.md
+          npm run build
 
-      - name: Verify ZIP structure
+      - name: Verify XPI structure
         run: |
-          echo "Verifying ZIP contents..."
-          unzip -l firefox-extension.zip | grep -E "(manifest.json|content/github-button.js|icons/)"
+          echo "Verifying XPI contents..."
+          unzip -l github_sspcloud_launcher-1.0.0.zip | grep -E "(manifest.json|content/github-button.js|icons/)"
 
       - name: Display build info
         run: |
@@ -48,13 +43,13 @@ jobs:
           echo "User: $USER"
           echo "Git Ref: $GITHUB_REF_NAME"
           echo "Commit: $SHA"
-          ls -lh firefox-extension.zip
+          ls -lh github_sspcloud_launcher-1.0.0.zip
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: firefox-extension-zip
-          path: firefox-extension.zip
+          name: firefox-extension-xpi
+          path: github_sspcloud_launcher-1.0.0.zip
           retention-days: 30
 
   create-signed-szip:
@@ -68,14 +63,15 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: firefox-extension-zip
+          name: firefox-extension-xpi
           path: dist/
 
       - name: Create SZIP file
         run: |
           echo "Creating SZIP file from build..."
           cd dist
-          zip -r ../firefox-extension.szip *.zip
+          mv github_sspcloud_launcher-1.0.0.zip firefox-extension.zip
+          zip -r ../firefox-extension.szip firefox-extension.zip
 
       - name: Display SZIP info
         run: |
@@ -168,7 +164,7 @@ jobs:
           echo "**Build URL:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- \`firefox-extension-zip\` - ZIP package for Firefox Add-ons Build" >> $GITHUB_STEP_SUMMARY
+          echo "- \`firefox-extension-xpi\` - XPI package for Firefox Add-ons Build" >> $GITHUB_STEP_SUMMARY
           echo "- \`firefox-extension-szip\` - SZIP package for direct installation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Quality Checks" >> $GITHUB_STEP_SUMMARY
