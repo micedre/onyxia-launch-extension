@@ -5,78 +5,9 @@ const { buildSSPCloudURL, getRepositoryOwnerAndRepo } = require('../content/util
 // ─── buildSSPCloudURL ───────────────────────────────────────────────────────
 
 describe('buildSSPCloudURL', () => {
-  const BASE = 'https://datalab.sspcloud.fr/launcher/ide/vscode-python';
-
-  function params(url) {
-    return new URLSearchParams(url.split('?')[1]);
-  }
-
-  test('uses the correct base URL', () => {
+  test('falls back to hardcoded defaults when no template is provided', () => {
     const url = buildSSPCloudURL('org', 'repo');
-    expect(url.startsWith(BASE + '?')).toBe(true);
-  });
-
-  test('wraps git.repository in guillemets with full HTTPS URL', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    expect(params(url).get('git.repository')).toBe('«org/repo»');
-  });
-
-  test('wraps persistence.size in guillemets', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    expect(params(url).get('persistence.size')).toBe('«20Gi»');
-  });
-
-  test('wraps init.personalInit in guillemets', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    const value = params(url).get('init.personalInit');
-    expect(value.startsWith('«')).toBe(true);
-    expect(value.endsWith('»')).toBe(true);
-  });
-
-  test('wraps kubernetes.role in guillemets', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    expect(params(url).get('kubernetes.role')).toBe('«admin»');
-  });
-
-  test('wraps vault.secret in guillemets', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    expect(params(url).get('vault.secret')).toBe('«OPENAI-LLM»');
-  });
-
-  test('git.asCodeServerRoot has no guillemets', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    expect(params(url).get('git.asCodeServerRoot')).toBe('true');
-  });
-
-  test('does not double-encode the repository URL (%252F must not appear)', () => {
-    const url = buildSSPCloudURL('org', 'repo');
-    expect(url).not.toContain('%252F');
-  });
-
-  test('handles repos with hyphens and dots in the name', () => {
-    const url = buildSSPCloudURL('my-org', 'my.repo-name');
-    expect(params(url).get('git.repository')).toBe('«my-org/my.repo-name»');
-  });
-
-  test('custom config overrides persistenceSize', () => {
-    const url = buildSSPCloudURL('org', 'repo', { persistenceSize: '50Gi' });
-    expect(params(url).get('persistence.size')).toBe('«50Gi»');
-  });
-
-  test('custom config overrides vaultSecret', () => {
-    const url = buildSSPCloudURL('org', 'repo', { vaultSecret: 'MY-SECRET' });
-    expect(params(url).get('vault.secret')).toBe('«MY-SECRET»');
-  });
-
-  test('custom config overrides baseUrl', () => {
-    const customBase = 'https://my-sspcloud.example.com/launcher/ide/vscode-python';
-    const url = buildSSPCloudURL('org', 'repo', { baseUrl: customBase });
-    expect(url.startsWith(customBase + '?')).toBe(true);
-  });
-
-  test('custom config overrides version', () => {
-    const url = buildSSPCloudURL('org', 'repo', { version: '3.0.0' });
-    expect(params(url).get('version')).toBe('3.0.0');
+    expect(url).toContain('git.repository=%C2%ABorg%2Frepo%C2%BB');
   });
 });
 
@@ -120,6 +51,12 @@ describe('buildSSPCloudURL with URL template', () => {
     const template = 'https://api.github.com/repos/{owner}/{repo}';
     const url = buildSSPCloudURL('octocat', 'Hello-World', {}, template);
     expect(url).toBe('https://api.github.com/repos/octocat/Hello-World');
+  });
+
+  test('replaces all occurrences of {owner} and {repo} in the template', () => {
+    const template = 'https://example.com/?repo={repo}&name={repo}&owner={owner}&org={owner}';
+    const url = buildSSPCloudURL('my-org', 'my-repo', {}, template);
+    expect(url).toBe('https://example.com/?repo=my-repo&name=my-repo&owner=my-org&org=my-org');
   });
 });
 

@@ -30,8 +30,8 @@ function buildSSPCloudURL(owner, repo, config, urlTemplate) {
   if (urlTemplate && urlTemplate.includes('{owner}') && urlTemplate.includes('{repo}')) {
     // Substitute placeholders in the URL template
     const template = urlTemplate
-      .replace('{owner}', owner)
-      .replace('{repo}', repo);
+      .replaceAll('{owner}', owner)
+      .replaceAll('{repo}', repo);
     console.log('[SSPCloud] Using URL template:', template);
     return template;
   }

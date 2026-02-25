@@ -179,13 +179,6 @@
   // ─── click handler ───────────────────────────────────────────────────────────
 
   const DEFAULT_CONFIG = {
-    baseUrl: 'https://datalab.sspcloud.fr/launcher/ide/vscode-python',
-    version: '2.5.0',
-    s3: 'region-79669f20',
-    personalInit:
-      'https://raw.githubusercontent.com/micedre/sspcloud-init-scripts/refs/heads/main/vscode/init.sh',
-    vaultSecret: 'OPENAI-LLM',
-    persistenceSize: '20Gi',
     gitUrlTemplate: ''
   };
 

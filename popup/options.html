@@ -103,44 +103,10 @@
   <h1>SSPCloud Launcher Settings</h1>
   <form id="options-form">
     <div class="field">
-      <label for="baseUrl">SSPCloud Base URL</label>
-      <div class="field-hint">The launcher URL for your SSPCloud instance.</div>
-      <input type="url" id="baseUrl" name="baseUrl"
-        placeholder="https://datalab.sspcloud.fr/launcher/ide/vscode-python">
-    </div>
-
-    <div class="field">
-      <label for="version">VSCode Version</label>
-      <input type="text" id="version" name="version" placeholder="2.5.0">
-    </div>
-
-    <div class="field">
-      <label for="s3">S3 Region</label>
-      <input type="text" id="s3" name="s3" placeholder="region-79669f20">
-    </div>
-
-    <div class="field">
-      <label for="personalInit">Init Script URL</label>
-      <div class="field-hint">Shell script executed on workspace startup.</div>
-      <input type="url" id="personalInit" name="personalInit"
-        placeholder="https://raw.githubusercontent.com/…/init.sh">
-    </div>
-
-    <div class="field">
-      <label for="vaultSecret">Vault Secret</label>
-      <input type="text" id="vaultSecret" name="vaultSecret" placeholder="OPENAI-LLM">
-    </div>
-
-    <div class="field">
-      <label for="persistenceSize">Persistence Size</label>
-      <input type="text" id="persistenceSize" name="persistenceSize" placeholder="20Gi">
-    </div>
-
-    <div class="field">
       <label for="gitUrlTemplate">SSPCloud URL Template</label>
-      <div class="field-hint">Optional: Complete URL template for SSPCloud launcher with {owner} and {repo} placeholders. Leave empty to auto-generate URL with GitHub repository.</div>
+      <div class="field-hint">Complete URL template for SSPCloud launcher. Use {owner} and {repo} as placeholders for the GitHub repository owner and name.</div>
       <input type="text" id="gitUrlTemplate" name="gitUrlTemplate"
-        placeholder="https://datalab.sspcloud.fr/launcher/ide/vscode-python?git.repository=«{owner}/{repo}»&version={version}&s3={s3}">
+        placeholder="https://datalab.sspcloud.fr/launcher/ide/vscode-python?git.repository=«{owner}/{repo}»&version=2.5.0">
     </div>
 
     <div class="actions">
