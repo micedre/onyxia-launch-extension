@@ -16,23 +16,6 @@ function getRepositoryOwnerAndRepo() {
 }
 
 /**
- * Normalize a repository URL (strip .git suffix, convert SSH to HTTPS)
- * @param {string} repoUrl - Repository URL (could be HTTPS or SSH)
- * @returns {string} Normalized HTTPS URL without .git suffix
- */
-function normalizeRepoUrl(repoUrl) {
-  // Normalize to full HTTPS URL, strip .git suffix
-  let normalized = repoUrl.replace(/\.git$/, '');
-
-  if (normalized.startsWith('git@github.com:')) {
-    // SSH → HTTPS: git@github.com:org/repo → https://github.com/org/repo
-    normalized = 'https://github.com/' + normalized.replace(/^git@github\.com:/, '');
-  }
-
-  return normalized;
-}
-
-/**
  * Build the SSPCloud launcher URL for a given repository.
  * @param {string} owner - GitHub repository owner
  * @param {string} repo - GitHub repository name

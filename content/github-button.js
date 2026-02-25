@@ -1,4 +1,4 @@
-/* global buildSSPCloudURL, getRepositoryCloneURL */
+/* global buildSSPCloudURL */
 (function() {
   console.log('[SSPCloud] loaded, path:', window.location.pathname);
 
