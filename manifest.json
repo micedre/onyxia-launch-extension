@@ -17,6 +17,11 @@
     "48": "icons/sspcloud-button-48.png",
     "128": "icons/sspcloud-button-128.png"
   },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sspcloud-launcher@sspcloud.fr"
+    }
+  },
   "permissions": ["storage"],
   "optional_permissions": ["<all_urls>"],
   "options_ui": {
