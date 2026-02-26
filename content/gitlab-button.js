@@ -95,7 +95,7 @@
   }
 
   function tryInject() {
-    if (!isProjectPage()) return;
+    if (!isProjectRootPage()) return;
     if (document.getElementById('sspcloud-launch-btn')) return;
     initButton();
   }
